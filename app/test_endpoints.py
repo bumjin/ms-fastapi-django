@@ -15,4 +15,4 @@ def test_post_home_detail_view():
     response = client.post("/") # r = requests.post #python request
     assert response.status_code == 200
     assert "application/json" in response.headers["content-type"]
-    assert response.json() == {"hello": "World"}    
+    assert response.json() == {"hello": "World"}
