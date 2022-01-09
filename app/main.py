@@ -15,6 +15,7 @@ from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseSettings
 from PIL import Image
+import pytesseract
 
 class Settings(BaseSettings):
     debug: bool = False
@@ -45,8 +46,20 @@ def home_view(request: Request, settings: Settings = Depends(get_settings)):
 
 
 @app.post("/") # http POST
-def home_detail_view():
-    return {"hello": "World"}
+async def prediction_view(file:UploadFile = File(...), settings: Settings = Depends(get_settings)):
+    if not settings.echo_active:
+        raise HTTPException(status_code=400, detail="Invalid endpoint")
+    UPLOAD_DIR.mkdir(exist_ok=True)
+    bytes_str = io.BytesIO(await file.read())
+    try:
+        img = Image.open(bytes_str)
+    except:
+        raise HTTPException(status_code=400, detail="Invalid image")
+
+    preds = pytesseract.image_to_string(img,lang='kor+eng')
+    predictions = [x for x in preds.split('\n')]
+
+    return {"result:": predictions, "original": preds}
 
 @app.post("/img-echo/", response_class=FileResponse) # http POST
 async def img_echo_view(file:UploadFile = File(...), settings: Settings = Depends(get_settings)):
@@ -62,4 +75,5 @@ async def img_echo_view(file:UploadFile = File(...), settings: Settings = Depend
     fext = fname.suffix #.jpg #.png
     dest = UPLOAD_DIR / f"{uuid.uuid1()}{fext}"
     img.save(dest)
+
     return dest

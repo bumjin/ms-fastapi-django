@@ -15,11 +15,30 @@ def test_get_home():
     assert b"h1>Code On! 123</h1>" in response.content
     assert response.text != "<h1>Hello World</h1>"
 
-def test_post_home_detail_view():
+def test_invalid_file_upload_error():
     response = client.post("/") # r = requests.post #python request
-    assert response.status_code == 200
+    assert response.status_code == 422
     assert "application/json" in response.headers["content-type"]
-    assert response.json() == {"hello": "World"}
+
+def test_prediction_upload():
+    img_saved_path = BASE_DIR / "images"
+    for path in img_saved_path.glob("*"):
+        try:
+            img = Image.open(path)
+        except:
+            img = None
+
+        response = client.post("/", files={"file": open(path, 'rb')}) # r = requests.post #python request
+        if img is None:
+            assert response.status_code == 400
+        else:
+            assert response.status_code == 200
+            r_steam = io.BytesIO(response.content)
+            data = response.json()
+            assert len(data.keys()) == 2
+
+    #time.sleep(3)
+    shutil.rmtree(UPLOAD_DIR)
 
 valid_image_extensions = [".jpg", ".jpeg", ".png", ".gif"]
 def test_echo_upload():
