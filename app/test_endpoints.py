@@ -1,5 +1,5 @@
 from fastapi.testclient import TestClient
-from app.main import UPLOAD_DIR, app, BASE_DIR
+from app.main import UPLOAD_DIR, Settings, app, BASE_DIR, get_settings
 import shutil
 import time
 from PIL import Image, ImageChops
@@ -20,15 +20,32 @@ def test_invalid_file_upload_error():
     assert response.status_code == 422
     assert "application/json" in response.headers["content-type"]
 
-def test_prediction_upload():
+def test_prediction_upload_missing_header():
     img_saved_path = BASE_DIR / "images"
+    settings = get_settings()
     for path in img_saved_path.glob("*"):
         try:
             img = Image.open(path)
         except:
             img = None
 
-        response = client.post("/", files={"file": open(path, 'rb')}) # r = requests.post #python request
+        response = client.post("/", 
+                        files={"file": open(path, 'rb')}) # r = requests.post #python request
+
+        assert response.status_code == 401
+
+def test_prediction_upload():
+    img_saved_path = BASE_DIR / "images"
+    settings = get_settings()
+    for path in img_saved_path.glob("*"):
+        try:
+            img = Image.open(path)
+        except:
+            img = None
+
+        response = client.post("/", 
+                        headers={"Authorization": f"JWT {settings.app_auth_token}"},
+                        files={"file": open(path, 'rb')}) # r = requests.post #python request
         if img is None:
             assert response.status_code == 400
         else:
@@ -37,7 +54,7 @@ def test_prediction_upload():
             data = response.json()
             assert len(data.keys()) == 2
 
-    #time.sleep(3)
+    time.sleep(3)
     shutil.rmtree(UPLOAD_DIR)
 
 valid_image_extensions = [".jpg", ".jpeg", ".png", ".gif"]
@@ -61,5 +78,5 @@ def test_echo_upload():
             difference = ImageChops.difference(img, echo_img).getbbox()
             assert difference is None
 
-    #time.sleep(3)
+    time.sleep(3)
     shutil.rmtree(UPLOAD_DIR)
